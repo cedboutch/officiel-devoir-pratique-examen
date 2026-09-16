@@ -17,6 +17,7 @@ import jakarta.inject.Inject;
 
 @Service
 public class ServiceInspection {
+
     private final EtablissementStockage etablissementStockage;
 
     @Inject
@@ -26,31 +27,34 @@ public class ServiceInspection {
         this.etablissementStockage = etablissementStockage;
     }
 
-    public List<EtatEquipement> listerEtatEquipement(NoEtablissement noEtablissement, boolean inspectionSeulement) {
+    public List<EtatEquipement> listerEtatEquipement(
+            NoEtablissement noEtablissement,
+            boolean inspectionSeulement
+    ) {
         Etablissement etablissement = this.etablissementStockage.trouverEtablissement(noEtablissement);
 
-        List<EtatEquipement> equipementARemplacer = new LinkedList<>();
-        if (!inspectionSeulement) {
-            trouverEquipementARemplacer(etablissement.obtenirEquipements(), equipementARemplacer);
-        }
+        List<EtatEquipement> equipementARemplacer = inspectionSeulement
+                ? List.of()
+                : trouverEquipementARemplacer(etablissement.obtenirEquipements());
 
-        List<EtatEquipement> equipementAInspecter = new LinkedList<>();
-        this.trouverEquipementAInspecter(etablissement.obtenirEquipements(), inspectionSeulement, equipementAInspecter);
+        List<EtatEquipement> equipementAInspecter =
+                this.trouverEquipementAInspecter(etablissement.obtenirEquipements(), inspectionSeulement);
 
-        // Conserve seulement les equipement à inspecter qui ne sont pas aussi à remplacer.
-        // En gros, "à remplacer" a priorité sur "à inspecter".
         List<EtatEquipement> etats = equipementAInspecter.stream()
-            .filter(inspection ->
-                equipementARemplacer.stream()
-                    .noneMatch(remplacement -> remplacement.estPourMemeEquipement(inspection))
-            )
-            .collect(Collectors.toList());
+                .filter(inspection ->
+                        equipementARemplacer.stream()
+                                .noneMatch(remplacement -> remplacement.estPourMemeEquipement(inspection))
+                )
+                .collect(Collectors.toList());
         etats.addAll(equipementARemplacer);
         return etats;
     }
 
-    private void trouverEquipementARemplacer(List<Equipement> equipements, List<EtatEquipement> equipementARemplacer) {
+    private List<EtatEquipement> trouverEquipementARemplacer (List<Equipement> equipements) {
+        List<EtatEquipement> equipementARemplacer = new LinkedList<>();
+
         LocalDateTime aujourdhui = LocalDateTime.now();
+
         for (var equipement : equipements) {
             if (equipement.estPerimable() && equipement.datePeremption().isAfter(aujourdhui)) {
                 EtatEquipement etat = new EtatEquipement(equipement.getNoSerie(), equipement.getDescription(), StatutEquipement.A_REMPLACER);
@@ -58,16 +62,16 @@ public class ServiceInspection {
             }
 
             if (equipement.estUnContenant()) {
-                this.trouverEquipementARemplacer(equipement.getEquipementDansContenant(), equipementARemplacer);
+                equipementARemplacer.addAll(this.trouverEquipementARemplacer(equipement.getEquipementDansContenant()));
             }
         }
+
+        return equipementARemplacer;
     }
 
-    private void trouverEquipementAInspecter(
-        List<Equipement> equipements,
-        boolean inspectionSeulement,
-        List<EtatEquipement> equipementAInspecter
-    ) {
+    private List<EtatEquipement> trouverEquipementAInspecter(List<Equipement> equipements, boolean inspectionSeulement) {
+        List<EtatEquipement> equipementAInspecter = new LinkedList<>();
+
         for (var equipement : equipements) {
             StatutEquipement statutInspection = equipement.getStatutInspection();
             if (statutInspection != StatutEquipement.OK) {
@@ -76,9 +80,10 @@ public class ServiceInspection {
             }
 
             if (equipement.estUnContenant()) {
-                this.trouverEquipementAInspecter(equipement.getEquipementDansContenant(), inspectionSeulement,
-                    equipementAInspecter);
+                this.trouverEquipementAInspecter(equipement.getEquipementDansContenant(), inspectionSeulement
+                    );
             }
         }
+        return equipementAInspecter;
     }
 }

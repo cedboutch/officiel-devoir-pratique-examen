@@ -1,5 +1,6 @@
 package ca.ulaval.glo4002.pratique.interfaces;
 
+import ca.ulaval.glo4002.pratique.domaine.etablissement.numero.NoEtablissementFactory;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
 
 import ca.ulaval.glo4002.pratique.application.ServiceInspection;
@@ -11,5 +12,6 @@ public class ConfigurationServeurRest extends AbstractBinder {
     protected void configure() {
         bindAsContract(ServiceInspection.class);
         bind(EtablissementStockageEnMemoire.class).to(EtablissementStockage.class);
+        bindAsContract(NoEtablissementFactory.class);
     }
 }
